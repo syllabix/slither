@@ -16,7 +16,6 @@ use bevy::{
     },
     input::{keyboard::KeyCode, ButtonInput},
     sprite::Sprite,
-    transform::components::Transform,
 };
 
 use crate::arena::{Position, Size};
