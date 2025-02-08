@@ -3,6 +3,7 @@ use bevy::{
     window::{Window, WindowPlugin},
 };
 use food::FoodPlugin;
+use snake::SnakePlugin;
 
 mod snake;
 mod arena;
@@ -11,9 +12,9 @@ mod food;
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::srgb(0.04, 0.04, 0.04))) // Dark gray background
-        .add_systems(Startup, (setup_camera, snake::spawn).chain())
-        .add_systems(Update, snake::movement)
+        .add_systems(Startup, setup_camera)
         .add_systems(PostUpdate, (arena::position_translation, arena::scale_size))
+        .add_plugins(SnakePlugin)
         .add_plugins(FoodPlugin)
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
