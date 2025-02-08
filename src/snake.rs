@@ -32,7 +32,7 @@ use crate::{
     food::Food,
 };
 
-#[derive(PartialEq, Clone, Copy)]
+#[derive(PartialEq, Clone, Copy, Debug)]
 enum Direction {
     Left,
     Up,
@@ -283,5 +283,155 @@ impl Plugin for SnakePlugin {
             Update,
             (handle_input, movement, game_over, eater, grow).chain(),
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::{ecs::system::SystemState, prelude::*};
+
+    #[test]
+    fn test_basic_movement_keys() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(MovementTimer::from_seconds(0.150));
+        app.insert_resource(SnakeSegments::default());
+        app.insert_resource(LastTailPosition::default());
+        app.add_event::<GameOverEvent>();
+
+        let snake_entity = app
+            .world_mut()
+            .spawn((SnakeHead::default(), Position { x: 3, y: 3 }))
+            .id();
+
+        let test_cases = [
+            (KeyCode::ArrowLeft, Position { x: 2, y: 3 }),
+            (KeyCode::ArrowRight, Position { x: 4, y: 3 }),
+            (KeyCode::ArrowDown, Position { x: 3, y: 4 }), // snake should not move because it's already going up
+            (KeyCode::ArrowUp, Position { x: 3, y: 4 }),
+            (KeyCode::KeyA, Position { x: 2, y: 3 }),
+            (KeyCode::KeyD, Position { x: 4, y: 3 }),
+            (KeyCode::KeyW, Position { x: 3, y: 4 }), // snake should not move because it's already going up
+            (KeyCode::KeyW, Position { x: 3, y: 4 }),
+        ];
+
+        for (key, expected_position) in test_cases {
+            // Reset position
+            let world = app.world_mut();
+            *world.get_mut::<Position>(snake_entity).unwrap() = Position { x: 3, y: 3 };
+            *world.get_mut::<SnakeHead>(snake_entity).unwrap() = SnakeHead::default();
+
+            // Simulate key press and direction change
+            let mut input = ButtonInput::<KeyCode>::default();
+            input.press(key);
+            app.insert_resource(input);
+
+            let mut world = app.world_mut();
+            let mut input_state: SystemState<(Res<ButtonInput<KeyCode>>, Query<&mut SnakeHead>)> =
+                SystemState::new(&mut world);
+            let (input, heads) = input_state.get_mut(&mut world);
+            handle_input(input, heads);
+
+            // Simulate movement
+            let mut world = app.world_mut();
+            let mut system_state: SystemState<(
+                Res<Time>,
+                ResMut<MovementTimer>,
+                ResMut<SnakeSegments>,
+                ResMut<LastTailPosition>,
+                Query<(Entity, &SnakeHead)>,
+                Query<&mut Position>,
+                EventWriter<GameOverEvent>,
+            )> = SystemState::new(&mut world);
+            let (time, mut timer, segments, last_tail, heads, positions, game_over) =
+                system_state.get_mut(&mut world);
+
+            // Ensure timer finishes
+            let duration = timer.clock.duration();
+            timer.clock.set_elapsed(duration);
+            movement(
+                time, timer, segments, last_tail, heads, positions, game_over,
+            );
+
+            // Check position
+            let position = app.world_mut().get::<Position>(snake_entity).unwrap();
+            assert_eq!(*position, expected_position, "the position of the snake was not in the right place after pressing the {:?} button", key);
+        }
+    }
+
+    #[test]
+    fn test_snake_movement_sequence() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(SnakeSegments::default());
+        app.insert_resource(LastTailPosition::default());
+        app.add_event::<GameOverEvent>();
+
+        // Spawn snake
+        let snake_entity = app
+            .world_mut()
+            .spawn((
+                Sprite {
+                    color: SNAKE_HEAD_COLOR,
+                    ..Default::default()
+                },
+                SnakeHead::default(),
+                Position { x: 3, y: 3 },
+                Size::square(0.8),
+            ))
+            .id();
+
+        app.insert_resource(MovementTimer::from_seconds(1.0));
+
+        let movement_sequence = [
+            (Direction::Up, Position { x: 3, y: 4 }),
+            (Direction::Right, Position { x: 4, y: 4 }),
+            (Direction::Down, Position { x: 4, y: 3 }),
+            (Direction::Right, Position { x: 5, y: 3 }),
+            (Direction::Up, Position { x: 5, y: 4 }),
+            (Direction::Up, Position { x: 5, y: 5 }),
+            (Direction::Left, Position { x: 4, y: 5 }),
+            (Direction::Left, Position { x: 3, y: 5 }),
+            (Direction::Down, Position { x: 3, y: 4 }),
+            (Direction::Right, Position { x: 4, y: 4 }),
+        ];
+
+        for (direction, expected_position) in movement_sequence {
+            // Set snake direction
+            let world = app.world_mut();
+            if let Some(mut head) = world.get_mut::<SnakeHead>(snake_entity) {
+                head.direction = direction;
+            }
+
+            // Simulate movement
+            let mut world = app.world_mut();
+            let mut system_state: SystemState<(
+                Res<Time>,
+                ResMut<MovementTimer>,
+                ResMut<SnakeSegments>,
+                ResMut<LastTailPosition>,
+                Query<(Entity, &SnakeHead)>,
+                Query<&mut Position>,
+                EventWriter<GameOverEvent>,
+            )> = SystemState::new(&mut world);
+            let (time, mut timer, segments, last_tail, heads, positions, game_over) =
+                system_state.get_mut(&mut world);
+
+            // Ensure timer finishes
+            let duration = timer.clock.duration();
+            timer.clock.set_elapsed(duration);
+            movement(
+                time, timer, segments, last_tail, heads, positions, game_over,
+            );
+
+            // Check position
+            let position = app.world_mut().get::<Position>(snake_entity).unwrap();
+            assert_eq!(
+                *position, expected_position,
+                "Snake position incorrect after moving {:?}. Expected {:?}, got {:?}",
+                direction, expected_position, position
+            );
+        }
     }
 }

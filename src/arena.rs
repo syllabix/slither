@@ -16,7 +16,7 @@ use bevy::{
 pub const WIDTH: f32 = 10.;
 pub const HEIGHT: f32 = 10.;
 
-#[derive(Component, Clone, Copy, PartialEq, Eq)]
+#[derive(Component, Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Position {
     pub x: i32,
     pub y: i32,
@@ -100,3 +100,4 @@ pub fn position_translation(window: Query<&Window, With<PrimaryWindow>>, mut pos
         transform.translation = Vec3::new(x, y, 0.0);
     }
 }
+
