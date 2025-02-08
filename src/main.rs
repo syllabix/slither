@@ -13,9 +13,7 @@ fn main() {
     App::new()
         .insert_resource(ClearColor(Color::srgb(0.04, 0.04, 0.04))) // Dark gray background
         .add_systems(Startup, setup_camera)
-        .add_systems(PostUpdate, (arena::position_translation, arena::scale_size))
-        .add_plugins(SnakePlugin)
-        .add_plugins(FoodPlugin)
+        .add_plugins((SnakePlugin, FoodPlugin))
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Snake Game".into(),
@@ -24,6 +22,7 @@ fn main() {
             }),
             ..Default::default()
         }))
+        .add_systems(PostUpdate, (arena::position_translation, arena::scale_size))
         .run();
 }
 

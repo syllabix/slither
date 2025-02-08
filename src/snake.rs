@@ -12,11 +12,13 @@
 use std::slice::Iter;
 
 use bevy::{
-    app::{FixedUpdate, Plugin, Startup},
+    app::{Plugin, Startup, Update},
     color::Color,
     ecs::{
         component::Component,
         entity::Entity,
+        event::{Event, EventReader, EventWriter},
+        query::With,
         schedule::IntoSystemConfigs,
         system::{Commands, Query, Res, ResMut, Resource},
     },
@@ -25,7 +27,10 @@ use bevy::{
     time::{Time, Timer, TimerMode},
 };
 
-use crate::arena::{Position, Size};
+use crate::{
+    arena::{Position, Size, HEIGHT, WIDTH},
+    food::Food,
+};
 
 #[derive(PartialEq, Clone, Copy)]
 enum Direction {
@@ -76,7 +81,14 @@ impl SnakeSegments {
     fn len(&self) -> usize {
         self.0.len()
     }
+
+    fn push(&mut self, e: Entity) {
+        self.0.push(e);
+    }
 }
+
+#[derive(Resource, Default)]
+struct LastTailPosition(Option<Position>);
 
 fn spawn_segment(mut commands: Commands, position: Position) -> Entity {
     commands
@@ -151,8 +163,10 @@ fn movement(
     time: Res<Time>,
     mut timer: ResMut<MovementTimer>,
     segments: ResMut<SnakeSegments>,
+    mut last_tail_position: ResMut<LastTailPosition>,
     mut heads: Query<(Entity, &SnakeHead)>,
     mut positions: Query<&mut Position>,
+    mut game_over: EventWriter<GameOverEvent>,
 ) {
     if !timer.clock.tick(time.delta()).just_finished() {
         return;
@@ -173,7 +187,20 @@ fn movement(
                 Direction::Right => head_pos.x += 1,
                 Direction::Down => head_pos.y -= 1,
             }
+
+            if head_pos.x < 0
+                || head_pos.y < 0
+                || head_pos.x as f32 >= WIDTH
+                || head_pos.y as f32 >= HEIGHT
+            {
+                game_over.send(GameOverEvent);
+            }
+
+            if segment_positions.contains(&head_pos) {
+                game_over.send(GameOverEvent);
+            }
         }
+
         segment_positions
             .iter()
             .zip(segments.iter().skip(1))
@@ -182,8 +209,64 @@ fn movement(
                     *position = *pos
                 }
             });
+
+        if let Some(last_segment) = segment_positions.last() {
+            *last_tail_position = LastTailPosition(Some(*last_segment));
+        }
     }
 }
+
+fn grow(
+    commands: Commands,
+    last_tail_position: Res<LastTailPosition>,
+    mut segments: ResMut<SnakeSegments>,
+    mut growth_reader: EventReader<GrowthEvent>,
+) {
+    if growth_reader.read().next().is_some() {
+        if let Some(last_position) = last_tail_position.0 {
+            let segment = spawn_segment(commands, last_position);
+            segments.push(segment);
+        }
+    }
+}
+
+fn game_over(
+    mut commands: Commands,
+    mut reader: EventReader<GameOverEvent>,
+    segment_resource: ResMut<SnakeSegments>,
+    food: Query<Entity, With<Food>>,
+    segments: Query<Entity, With<SnakeSegment>>,
+    heads: Query<Entity, With<SnakeHead>>,
+) {
+    if reader.read().next().is_some() {
+        for ent in food.iter().chain(heads.iter()).chain(segments.iter()) {
+            commands.entity(ent).despawn();
+        }
+        spawn_snake(commands, segment_resource);
+    }
+}
+
+#[derive(Event)]
+struct GrowthEvent;
+
+fn eater(
+    mut commands: Commands,
+    mut growth_writer: EventWriter<GrowthEvent>,
+    food_positions: Query<(Entity, &Position), With<Food>>,
+    head_positions: Query<&Position, With<SnakeHead>>,
+) {
+    for head_pos in head_positions.iter() {
+        for (ent, food_pos) in food_positions.iter() {
+            if food_pos == head_pos {
+                commands.entity(ent).despawn();
+                growth_writer.send(GrowthEvent);
+            }
+        }
+    }
+}
+
+#[derive(Event)]
+struct GameOverEvent;
 
 pub struct SnakePlugin;
 
@@ -192,7 +275,13 @@ impl Plugin for SnakePlugin {
         let timer = MovementTimer::from_seconds(0.150);
         app.insert_resource(timer);
         app.insert_resource(SnakeSegments::default());
+        app.insert_resource(LastTailPosition::default());
+        app.add_event::<GrowthEvent>();
+        app.add_event::<GameOverEvent>();
         app.add_systems(Startup, spawn_snake);
-        app.add_systems(FixedUpdate, (handle_input, movement).chain());
+        app.add_systems(
+            Update,
+            (handle_input, movement, game_over, eater, grow).chain(),
+        );
     }
 }
