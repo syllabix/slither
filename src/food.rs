@@ -18,6 +18,8 @@
 //! Food positions are constrained to the game arena grid to maintain consistent
 //! gameplay mechanics with the snake's movement.
 
+use core::f32;
+
 use bevy::prelude::*;
 use rand::random;
 
@@ -26,8 +28,14 @@ use crate::arena::{self, Position, Size};
 const FOOD_COLOR: Color = Color::srgb(1.0, 0.0, 1.0);
 
 #[derive(Resource)]
-pub struct FoodTimer {
+struct FoodTimer {
     clock: Timer
+}
+
+impl FoodTimer {
+    fn from_seconds(secs: f32) -> Self {
+        Self { clock: Timer::from_seconds(secs, TimerMode::Repeating) }
+    }
 }
 
 /// Component that marks an entity as collectible food
@@ -35,7 +43,7 @@ pub struct FoodTimer {
 pub struct Food;
 
 /// Spawns initial food and respawns food when collected
-pub fn spawn(time: Res<Time>, mut timer: ResMut<FoodTimer>, mut commands: Commands) {
+fn spawn(time: Res<Time>, mut timer: ResMut<FoodTimer>, mut commands: Commands) {
     if timer.clock.tick(time.delta()).just_finished() {
         let x = (random::<f32>() * arena::WIDTH) as i32;
         let y = (random::<f32>() * arena::HEIGHT) as i32;
@@ -49,3 +57,12 @@ pub fn spawn(time: Res<Time>, mut timer: ResMut<FoodTimer>, mut commands: Comman
     }
 }
 
+pub struct FoodPlugin;
+
+impl Plugin for FoodPlugin {
+    fn build(&self, app: &mut App) {
+        let timer = FoodTimer::from_seconds(2.0);
+        app.insert_resource(timer);
+        app.add_systems(Update, spawn);
+    }
+}
