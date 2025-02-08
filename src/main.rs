@@ -2,6 +2,7 @@ use bevy::{
     prelude::*,
     window::{Window, WindowPlugin},
 };
+use food::FoodPlugin;
 
 mod snake;
 mod arena;
@@ -13,6 +14,7 @@ fn main() {
         .add_systems(Startup, (setup_camera, snake::spawn).chain())
         .add_systems(Update, snake::movement)
         .add_systems(PostUpdate, (arena::position_translation, arena::scale_size))
+        .add_plugins(FoodPlugin)
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Snake Game".into(),
