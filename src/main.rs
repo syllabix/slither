@@ -2,6 +2,7 @@ use bevy::{
     prelude::*,
     window::{Window, WindowPlugin},
 };
+
 use food::FoodPlugin;
 use snake::SnakePlugin;
 
