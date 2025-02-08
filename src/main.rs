@@ -5,6 +5,7 @@ use bevy::{
 
 mod snake;
 mod arena;
+mod food;
 
 fn main() {
     App::new()
