@@ -1,0 +1,38 @@
+[package]
+name = "gametime"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = { version = "0.15.2", features = ["dynamic_linking"] }
+
+# Set optimization level to 1 for faster compilation in development
+# while still maintaining some performance optimizations.
+# This provides a balance between compile times and runtime speed.
+[profile.dev]
+opt-level = 1
+
+# Force all dependencies to use optimization level 3 even in debug builds
+# This ensures better performance from external crates without
+# significantly impacting compile times since they don't change often
+[profile.dev.package."*"]
+opt-level = 3
+
+# Enable more optimization in the release profile at the cost of compile time.
+[profile.release]
+# Compile the entire crate as one unit.
+# Slows compile times, marginal improvements.
+codegen-units = 1
+# Do a second optimization pass over the entire program, including dependencies.
+# Slows compile times, marginal improvements.
+lto = "thin"
+
+# Optimize for size in the wasm-release profile to reduce load times and bandwidth usage on web.
+[profile.wasm-release]
+# Default to release profile values.
+inherits = "release"
+# Optimize with size in mind (also try "z", sometimes it is better).
+# Slightly slows compile times, great improvements to file size and runtime performance.
+opt-level = "s"
+# Strip all debugging information from the binary to slightly reduce file size.
+strip = "debuginfo"
