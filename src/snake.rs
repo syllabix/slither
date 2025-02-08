@@ -9,20 +9,18 @@
 //! - Movement and growth systems
 //! - Collision detection with food and self
 
-use std::time::Duration;
 
 use bevy::{
-    app::{FixedUpdate, Plugin, Startup, Update},
+    app::{FixedUpdate, Plugin, Startup},
     color::Color,
     ecs::{
         component::Component,
-        query::With,
-        schedule::{IntoSystemConfigs, SystemSet},
+        schedule::IntoSystemConfigs,
         system::{Commands, Query, Res, ResMut, Resource},
     },
     input::{keyboard::KeyCode, ButtonInput},
     sprite::Sprite,
-    time::{common_conditions::on_timer, Time, Timer, TimerMode},
+    time::{Time, Timer, TimerMode},
 };
 
 use crate::arena::{Position, Size};
