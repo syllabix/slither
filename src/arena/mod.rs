@@ -10,7 +10,7 @@
 //! - Providing utilities for position validation
 
 use bevy::{
-    ecs::{component::Component, query::With, system::{Query, Res}}, math::Vec3, render::view::WindowSurfaces, transform::components::Transform, window::{PrimaryWindow, Window}
+    ecs::{component::Component, query::With, system::Query}, math::Vec3, transform::components::Transform, window::{PrimaryWindow, Window}
 };
 
 pub const WIDTH: f32 = 10.;
